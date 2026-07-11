@@ -538,6 +538,11 @@
     }
 
     .timerboard-batch-modal .batch-timer-row .card-header {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: stretch;
+        gap: 0.8rem;
         background: linear-gradient(180deg, #fbfcfe 0%, #f1f5f9 100%);
         border-bottom: 1px solid rgba(31, 73, 103, 0.08);
         padding: 0.8rem 1rem;
@@ -556,6 +561,7 @@
         display: flex;
         align-items: center;
         gap: 0.65rem;
+        width: 100%;
         min-width: 0;
         cursor: pointer;
     }
@@ -628,6 +634,17 @@
         flex-wrap: wrap;
         gap: 0.5rem;
         align-items: center;
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    .timerboard-batch-modal .batch-row-actions .btn {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
+    .timerboard-batch-modal .import-clipboard-btn {
+        max-width: 100%;
     }
 
     .timerboard-batch-modal .toggle-batch-row-btn {

@@ -41,6 +41,128 @@
             return 'New timer';
         }
 
+        function normalizeClipboardText(value) {
+            return normalizeNotes(value).replace(/\s+/g, ' ');
+        }
+
+        function mapClipboardStructureType(rawType) {
+            var normalized = normalizeClipboardText(rawType).toLowerCase();
+            var typeMap = {
+                'orbital skyhook': 'Skyhook',
+                'skyhook': 'Skyhook',
+                'mercenary den': 'Mercenary Den',
+                'customs office': 'POCO',
+                'player-owned customs office': 'POCO',
+                'orbital customs office': 'POCO',
+                'keepstar': 'Keepstar',
+                'fortizar': 'Fortizar',
+                'sotiyo': 'Sotiyo',
+                'azbel': 'Azbel',
+                'astrahus': 'Astrahus',
+                'athanor': 'Athanor',
+                'tatara': 'Tatara',
+                'raitaru': 'Raitaru',
+                'ansiblex': 'Ansiblex',
+                'tenebrex': 'Tenebrex',
+                'pharolux': 'Pharolux',
+                'sovereignty hub': 'Sovereignty Hub',
+                'metenox': 'Metenox'
+            };
+
+            return typeMap[normalized] || '';
+        }
+
+        function parseClipboardTimerImport(text) {
+            var lines = String(text || '')
+                .split(/\r?\n/)
+                .map(function(line) { return $.trim(line); })
+                .filter(function(line) { return line.length > 0; });
+
+            if (!lines.length) {
+                return null;
+            }
+
+            var reinforceLine = lines.find(function(line) {
+                return /^Reinforced until\s+\d{4}\.\d{2}\.\d{2}\s+\d{2}:\d{2}:\d{2}$/i.test(line);
+            });
+
+            if (!reinforceLine) {
+                return null;
+            }
+
+            var parsed = {
+                system: '',
+                structure_type: '',
+                structure_name: '',
+                owner_corporation: '',
+                attacker_corporation: '',
+                time_input: reinforceLine.replace(/^Reinforced until\s+/i, '')
+            };
+            var header = lines[0];
+            var typeLocationOwnerMatch = header.match(/^(.*?)\s+\(([^)]+)\)\s+\[([^\]]+)\]$/);
+
+            if (typeLocationOwnerMatch) {
+                parsed.structure_type = mapClipboardStructureType(typeLocationOwnerMatch[1]);
+                parsed.system = normalizeNotes(typeLocationOwnerMatch[2]);
+                parsed.owner_corporation = normalizeNotes(typeLocationOwnerMatch[3]);
+
+                return parsed;
+            }
+
+            var typeLocationMatch = header.match(/^(.*?)\s+\(([^)]+)\)$/);
+            if (typeLocationMatch) {
+                parsed.structure_type = mapClipboardStructureType(typeLocationMatch[1]);
+                parsed.system = normalizeNotes(typeLocationMatch[2]);
+
+                return parsed;
+            }
+
+            var systemNameMatch = header.match(/^([A-Z0-9-]+)\s*-\s*(.+)$/);
+            if (systemNameMatch) {
+                parsed.system = normalizeNotes(systemNameMatch[1]);
+                parsed.structure_name = normalizeNotes(systemNameMatch[2]);
+
+                return parsed;
+            }
+
+            var structureTypeOnly = mapClipboardStructureType(header);
+            if (structureTypeOnly) {
+                parsed.structure_type = structureTypeOnly;
+
+                return parsed;
+            }
+
+            return parsed.time_input ? parsed : null;
+        }
+
+        function applyClipboardImportToBatchRow($row, parsed) {
+            if (parsed.system) {
+                setSelectValue($row.find('.batch-system-select'), parsed.system);
+            }
+
+            if (parsed.structure_type) {
+                $row.find('.batch-structure-type-select').val(parsed.structure_type).trigger('change');
+            }
+
+            if (parsed.structure_name) {
+                $row.find('input[name$="[structure_name]"]').val(parsed.structure_name);
+            }
+
+            if (parsed.owner_corporation) {
+                setSelectValue($row.find('.batch-owner-corporation-select'), parsed.owner_corporation);
+            }
+
+            if (parsed.attacker_corporation) {
+                setSelectValue($row.find('.batch-attacker-corporation-select'), parsed.attacker_corporation);
+            }
+
+            if (parsed.time_input) {
+                $row.find('input[name$="[time_input]"]').val(parsed.time_input);
+            }
+
+            updateBatchRowSummary($row);
+        }
+
         function updateTimerNoteCounter(value) {
             var count = (value || '').length;
             $('#timer-note-char-count').text(count + (count === 1 ? ' character' : ' characters'));
@@ -685,14 +807,38 @@
                 }
             });
 
-            $(document).on('click', '.duplicate-batch-row-btn', function() {
-                var $row = $(this).closest('.batch-timer-row');
-                addBatchTimerRow(collectBatchRowData($row), true);
-            });
+        $(document).on('click', '.duplicate-batch-row-btn', function() {
+            var $row = $(this).closest('.batch-timer-row');
+            addBatchTimerRow(collectBatchRowData($row), true);
+        });
 
-            $(document).on('click', '.remove-batch-row-btn', function() {
-                var $row = $(this).closest('.batch-timer-row');
-                var wasActive = $row.hasClass('is-active');
+        $(document).on('click', '.import-clipboard-btn', async function() {
+            var $row = $(this).closest('.batch-timer-row');
+
+            if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
+                window.alert('Clipboard import is not available in this browser.');
+                return;
+            }
+
+            try {
+                var clipboardText = await navigator.clipboard.readText();
+                var parsed = parseClipboardTimerImport(clipboardText);
+
+                if (!parsed) {
+                    window.alert('Clipboard text was not recognized. Expected a copy from the EVE Online "Selected Item" window that includes a "Reinforced until YYYY.MM.DD HH:MM:SS" line.');
+                    return;
+                }
+
+                applyClipboardImportToBatchRow($row, parsed);
+                activateBatchRow($row, false);
+            } catch (error) {
+                window.alert('Clipboard import failed. Make sure your browser allows clipboard access for this page.');
+            }
+        });
+
+        $(document).on('click', '.remove-batch-row-btn', function() {
+            var $row = $(this).closest('.batch-timer-row');
+            var wasActive = $row.hasClass('is-active');
 
                 if ($('#batch-timer-rows .batch-timer-row').length === 1) {
                     return;

@@ -448,6 +448,9 @@
                         <button type="button" class="btn btn-outline-secondary btn-sm batch-note-btn timer-note-launch">
                             <i class="fas fa-sticky-note"></i> <span class="note-btn-label">Add note</span>
                         </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm import-clipboard-btn">
+                            <i class="far fa-clipboard"></i> Import from clipboard
+                        </button>
                         <button type="button" class="btn btn-light btn-sm toggle-batch-row-btn" title="Collapse or expand timer">
                             <i class="fas fa-chevron-down"></i>
                         </button>
