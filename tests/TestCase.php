@@ -94,12 +94,15 @@ abstract class TestCase extends BaseTestCase
     {
         return TimerSyncPeer::create(array_merge([
             'name' => 'Peer Seat',
+            'peer_type' => TimerSyncPeer::TYPE_SEAT,
             'instance_uuid' => '11111111-1111-1111-1111-111111111111',
             'base_url' => 'https://peer.example.test',
             'api_token' => 'secret-token',
             'sync_tag_ids' => [1],
+            'excluded_tag_ids' => [],
             'incoming_role_id' => null,
             'allow_remote_delete' => true,
+            'pull_remote_timers' => false,
             'is_enabled' => true,
         ], $overrides));
     }

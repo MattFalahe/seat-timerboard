@@ -3,7 +3,6 @@
 namespace Raikia\SeatTimerboard\Services;
 
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Raikia\SeatTimerboard\Jobs\ProcessTimerSyncDelete;
 use Raikia\SeatTimerboard\Jobs\ProcessTimerSyncUpsert;
@@ -14,7 +13,7 @@ use Raikia\SeatTimerboard\Models\TimerSyncPeer;
 class TimerSyncOutboundService
 {
     public function __construct(
-        private TimerSyncPayloadFactory $payloadFactory,
+        private TimerSyncPeerAdapterFactory $adapterFactory,
         private TimerboardInstanceIdentity $identity
     ) {
     }
@@ -86,7 +85,7 @@ class TimerSyncOutboundService
             ->where('peer_id', $peer->id)
             ->first();
 
-        if (empty($tagIds) || ! $this->shouldSyncToPeer($peer, $tagIds)) {
+        if (! $this->shouldSyncToPeer($peer, $tagIds)) {
             if ($delivery) {
                 $this->removeDeliveryForPeer($peer, $delivery, $timer->id);
             }
@@ -94,24 +93,19 @@ class TimerSyncOutboundService
             return;
         }
 
-        $payload = $this->payloadFactory->build($timer);
-        $response = $this->request($peer)
-            ->post($peer->base_url . '/api/v2/timerboard-sync/timers', $payload);
+        $adapter = $this->adapterFactory->forPeer($peer);
 
-        if (! $response->successful()) {
+        try {
+            $remoteTimerId = $adapter->pushTimer($peer, $timer, $delivery);
+        } catch (\Throwable $exception) {
             Log::warning('Timerboard sync upsert failed.', [
                 'timer_id' => $timer->id,
                 'peer_id' => $peer->id,
-                'status' => $response->status(),
-                'body' => $response->body(),
+                'peer_type' => $peer->peer_type,
+                'exception' => $exception->getMessage(),
             ]);
 
-            throw new \RuntimeException(sprintf(
-                'Timerboard sync upsert failed for timer %d to peer %d with status %d.',
-                $timer->id,
-                $peer->id,
-                $response->status()
-            ));
+            throw $exception;
         }
 
         TimerSyncDelivery::updateOrCreate(
@@ -120,6 +114,7 @@ class TimerSyncOutboundService
                 'peer_id' => $peer->id,
             ],
             [
+                'remote_timer_id' => $remoteTimerId,
                 'last_synced_at' => Carbon::now(),
             ]
         );
@@ -140,21 +135,18 @@ class TimerSyncOutboundService
 
     private function shouldSyncToPeer(TimerSyncPeer $peer, array $tagIds): bool
     {
-        if (empty($peer->sync_tag_ids)) {
+        $excludedTagIds = $peer->excludedTagIds();
+        $includedTagIds = $peer->includedTagIds();
+
+        if (! empty(array_intersect($tagIds, $excludedTagIds))) {
             return false;
         }
 
-        return ! empty(array_intersect($tagIds, array_map('intval', $peer->sync_tag_ids)));
-    }
+        if (empty($includedTagIds)) {
+            return true;
+        }
 
-    private function request(TimerSyncPeer $peer)
-    {
-        return Http::acceptJson()
-            ->asJson()
-            ->timeout(15)
-            ->withHeaders([
-                'X-Token' => $peer->api_token,
-            ]);
+        return ! empty(array_intersect($tagIds, $includedTagIds));
     }
 
     private function removeDeliveryForPeer(?TimerSyncPeer $peer, TimerSyncDelivery $delivery, int $localTimerId): void
@@ -165,30 +157,23 @@ class TimerSyncOutboundService
             return;
         }
 
-        $payload = [
-            'source_instance_uuid' => $this->identity->getUuid(),
-            'origin_timer_id' => $localTimerId,
-        ];
-
-        $response = $this->request($peer)
-            ->delete($peer->base_url . '/api/v2/timerboard-sync/timers', $payload);
-
-        if (! $response->successful()) {
+        try {
+            $deleted = $this->adapterFactory
+                ->forPeer($peer)
+                ->deleteTimer($peer, $delivery, $localTimerId, $this->identity->getUuid());
+        } catch (\Throwable $exception) {
             Log::warning('Timerboard sync delete failed.', [
                 'local_timer_id' => $localTimerId,
                 'peer_id' => $peer->id,
-                'status' => $response->status(),
-                'body' => $response->body(),
+                'peer_type' => $peer->peer_type,
+                'exception' => $exception->getMessage(),
             ]);
 
-            throw new \RuntimeException(sprintf(
-                'Timerboard sync delete failed for timer %d to peer %d with status %d.',
-                $localTimerId,
-                $peer->id,
-                $response->status()
-            ));
+            throw $exception;
         }
 
-        $delivery->delete();
+        if ($deleted) {
+            $delivery->delete();
+        }
     }
 }

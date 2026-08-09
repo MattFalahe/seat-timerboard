@@ -2,7 +2,9 @@
 
 namespace Raikia\SeatTimerboard;
 
+use Raikia\SeatTimerboard\Console\Commands\PullTimerSyncPeers;
 use Raikia\SeatTimerboard\database\seeds\TimerboardSeeder;
+use Raikia\SeatTimerboard\Database\Seeds\ScheduleSeeder;
 use Raikia\SeatTimerboard\Observers\CharacterNotificationObserver;
 use Seat\Services\AbstractSeatPlugin;
 use Seat\Eveapi\Models\Character\CharacterNotification;
@@ -21,9 +23,13 @@ class TimerboardServiceProvider extends AbstractSeatPlugin
         $this->addTranslations();
         $this->loadMigrationsFrom(__DIR__ . '/database/migrations');
         $this->registerPermissions(__DIR__ . '/Config/timerboard.permissions.php', 'seat-timerboard');
+        $this->registerCommands();
 
         CharacterNotification::observe(CharacterNotificationObserver::class);
-        $this->registerDatabaseSeeders(TimerboardSeeder::class);
+        $this->registerDatabaseSeeders([
+            TimerboardSeeder::class,
+            ScheduleSeeder::class,
+        ]);
     }
 
     /**
@@ -97,5 +103,14 @@ class TimerboardServiceProvider extends AbstractSeatPlugin
     private function addTranslations()
     {
         $this->loadTranslationsFrom(__DIR__ . '/resources/lang', 'seat-timerboard');
+    }
+
+    private function registerCommands()
+    {
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                PullTimerSyncPeers::class,
+            ]);
+        }
     }
 }

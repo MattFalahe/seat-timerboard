@@ -121,12 +121,15 @@ trait CreatesDatabaseSchema
         Schema::create('seat_timerboard_sync_peers', function (Blueprint $table) {
             $table->increments('id');
             $table->string('name');
+            $table->string('peer_type')->default('seat');
             $table->string('instance_uuid')->unique();
             $table->string('base_url');
             $table->text('api_token');
             $table->text('sync_tag_ids')->nullable();
+            $table->text('excluded_tag_ids')->nullable();
             $table->unsignedInteger('incoming_role_id')->nullable();
             $table->boolean('allow_remote_delete')->default(true);
+            $table->boolean('pull_remote_timers')->default(false);
             $table->boolean('is_enabled')->default(true);
             $table->timestamps();
         });
@@ -135,6 +138,7 @@ trait CreatesDatabaseSchema
             $table->increments('id');
             $table->unsignedInteger('local_timer_id');
             $table->unsignedInteger('peer_id');
+            $table->string('remote_timer_id')->nullable();
             $table->timestamp('last_synced_at')->nullable();
             $table->timestamps();
             $table->unique(['local_timer_id', 'peer_id'], 'seat_timerboard_sync_deliveries_local_timer_peer_unique');

@@ -81,6 +81,121 @@ class TimerSyncOutboundServiceTest extends TestCase
         });
     }
 
+    public function test_sync_timer_to_peer_sends_all_timers_when_no_include_or_exclude_filters_are_set(): void
+    {
+        Http::fake([
+            'https://peer.example.test/api/v2/timerboard-sync/timers' => Http::response(['status' => 'created'], 201),
+        ]);
+
+        $timer = $this->createTimerWithTags([], [
+            'structure_name' => 'Untyped Fort',
+        ]);
+        $peer = $this->createSyncPeer([
+            'sync_tag_ids' => [],
+            'excluded_tag_ids' => [],
+        ]);
+
+        app(TimerSyncOutboundService::class)->syncTimerToPeer($timer->id, $peer->id);
+
+        $this->assertDatabaseHas('seat_timerboard_sync_deliveries', [
+            'local_timer_id' => $timer->id,
+            'peer_id' => $peer->id,
+        ]);
+    }
+
+    public function test_sync_timer_to_peer_excluded_tags_override_included_tags(): void
+    {
+        Http::fake();
+
+        $timer = $this->createTimerWithTags(['Friendly', 'Anchoring'], [
+            'structure_name' => 'Anchoring Fort',
+        ]);
+        $peer = $this->createSyncPeer([
+            'sync_tag_ids' => [1],
+            'excluded_tag_ids' => [2],
+        ]);
+
+        app(TimerSyncOutboundService::class)->syncTimerToPeer($timer->id, $peer->id);
+
+        $this->assertDatabaseMissing('seat_timerboard_sync_deliveries', [
+            'local_timer_id' => $timer->id,
+            'peer_id' => $peer->id,
+        ]);
+        Http::assertNothingSent();
+    }
+
+    public function test_sync_timer_to_aauth_peer_records_remote_timer_id_from_api_response(): void
+    {
+        Http::fake([
+            'https://aauth.example.test/api/timers' => Http::response([
+                'url' => 'https://aauth.example.test/structuretimers/edit/77',
+            ], 201),
+        ]);
+
+        $timer = $this->createTimerWithTags(['Friendly'], [
+            'structure_type' => 'Fortizar',
+            'structure_name' => 'Shared Fort',
+            'notes' => 'Bring logi',
+        ]);
+        $peer = $this->createSyncPeer([
+            'peer_type' => 'aauth',
+            'base_url' => 'https://aauth.example.test/api/timers',
+            'sync_tag_ids' => [],
+            'allow_remote_delete' => false,
+        ]);
+
+        app(TimerSyncOutboundService::class)->syncTimerToPeer($timer->id, $peer->id);
+
+        $this->assertDatabaseHas('seat_timerboard_sync_deliveries', [
+            'local_timer_id' => $timer->id,
+            'peer_id' => $peer->id,
+            'remote_timer_id' => '77',
+        ]);
+
+        Http::assertSent(function ($request) {
+            $data = $request->data();
+
+            return $request->method() === 'POST'
+                && $request->url() === 'https://aauth.example.test/api/timers'
+                && $request->hasHeader('X-restapi-Key', 'secret-token')
+                && ($data['structure'] ?? null) === 35833
+                && ($data['system'] ?? null) === 'Jita'
+                && ($data['owner'] ?? null) === 'Friendly Corp'
+                && str_contains((string) ($data['details_notes'] ?? ''), '[seat-timerboard-sync]');
+        });
+    }
+
+    public function test_sync_timer_to_aauth_peer_does_not_attempt_a_second_create_when_a_delivery_already_exists(): void
+    {
+        Http::fake();
+
+        $timer = $this->createTimerWithTags(['Friendly'], [
+            'structure_type' => 'Fortizar',
+            'structure_name' => 'Recovered Fort',
+        ]);
+        $peer = $this->createSyncPeer([
+            'peer_type' => 'aauth',
+            'base_url' => 'https://aauth.example.test/api/timers',
+            'sync_tag_ids' => [],
+            'allow_remote_delete' => false,
+        ]);
+        TimerSyncDelivery::create([
+            'local_timer_id' => $timer->id,
+            'peer_id' => $peer->id,
+            'remote_timer_id' => '88',
+        ]);
+
+        app(TimerSyncOutboundService::class)->syncTimerToPeer($timer->id, $peer->id);
+
+        $this->assertDatabaseHas('seat_timerboard_sync_deliveries', [
+            'local_timer_id' => $timer->id,
+            'peer_id' => $peer->id,
+            'remote_timer_id' => '88',
+        ]);
+
+        Http::assertNothingSent();
+    }
+
     public function test_delete_local_timer_dispatches_delete_jobs_and_cleans_non_remote_delete_peers(): void
     {
         Queue::fake();

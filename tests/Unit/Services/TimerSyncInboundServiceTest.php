@@ -48,7 +48,7 @@ class TimerSyncInboundServiceTest extends TestCase
         $this->assertStringContainsString('Bring logi', $timer->notes);
 
         $this->assertEqualsCanonicalizing(
-            ['Friendly', 'Armor', 'Remote Synced'],
+            ['Friendly', 'Armor', 'Remote Synced', 'Remote: Friendly Seat'],
             $timer->tags()->pluck('name')->all()
         );
     }
@@ -95,7 +95,7 @@ class TimerSyncInboundServiceTest extends TestCase
         $this->assertSame($timer->id, $updated->id);
         $this->assertSame('Amarr', $updated->fresh()->system);
         $this->assertEqualsCanonicalizing(
-            ['Friendly', 'Remote Synced'],
+            ['Friendly', 'Remote Synced', 'Remote: Friendly Seat'],
             $updated->fresh()->tags()->pluck('name')->all()
         );
     }

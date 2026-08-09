@@ -108,6 +108,39 @@ class Timer extends Model
         return self::STRUCTURE_TYPES;
     }
 
+    public static function structureTypeTypeId(?string $structureType): ?int
+    {
+        return self::STRUCTURE_IMAGE_TYPE_IDS[$structureType] ?? null;
+    }
+
+    public static function normalizeStructureType(?string $structureType): ?string
+    {
+        $needle = trim((string) $structureType);
+
+        if ($needle === '') {
+            return null;
+        }
+
+        foreach (self::STRUCTURE_TYPES as $key => $label) {
+            if (strcasecmp($needle, $key) === 0 || strcasecmp($needle, $label) === 0) {
+                return $key;
+            }
+        }
+
+        $aliases = [
+            'Customs Office' => 'POCO',
+            'Orbital Skyhook' => 'Skyhook',
+        ];
+
+        foreach ($aliases as $alias => $normalized) {
+            if (strcasecmp($needle, $alias) === 0) {
+                return $normalized;
+            }
+        }
+
+        return null;
+    }
+
     public function getStructureImage()
     {
         $typeId = self::STRUCTURE_IMAGE_TYPE_IDS[$this->structure_type] ?? 35832;

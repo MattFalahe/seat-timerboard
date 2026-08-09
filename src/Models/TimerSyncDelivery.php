@@ -11,6 +11,7 @@ class TimerSyncDelivery extends Model
     protected $fillable = [
         'local_timer_id',
         'peer_id',
+        'remote_timer_id',
         'last_synced_at',
     ];
 

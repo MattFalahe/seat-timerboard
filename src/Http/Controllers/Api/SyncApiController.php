@@ -86,6 +86,7 @@ class SyncApiController extends Controller
     {
         return TimerSyncPeer::query()
             ->where('instance_uuid', $instanceUuid)
+            ->where('peer_type', TimerSyncPeer::TYPE_SEAT)
             ->where('is_enabled', true)
             ->first();
     }
