@@ -9,32 +9,73 @@
             <h3 class="card-title">What This Does</h3>
         </div>
         <div class="card-body">
-            <p class="mb-2">
-                Timerboard Sync lets this SeAT instance share timers with other SeAT installs and with AllianceAuth timer APIs.
-            </p>
-            <p class="mb-2">
-                This is useful when you work with friendly groups, coalition partners, or alts on separate SeAT installs and want everyone to see the same relevant structure timers for joint operations without manually re-entering them.
-            </p>
-            <p class="mb-2">
-                Sync is peer-to-peer, not a mesh. This SeAT only sends timers to the remote instances you explicitly configure here, and remote timers do not get forwarded onward to other peers.
-            </p>
-            <p class="mb-2">
-                Outbound sync is filtered per peer. You can include timers with certain tags, exclude timers with certain tags, or leave both lists empty to send everything.
-            </p>
-            <p class="mb-0 text-muted">
-                SeAT peers are push-based. AAuth peers can also be polled for remote timers if you enable pull. Timers received from another source are marked locally as remote synced and use the receiving role you choose for that peer.
-            </p>
+            <ul class="nav nav-tabs" id="syncHelpTabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" id="sync-help-overview-tab" data-toggle="tab" href="#sync-help-overview" role="tab" aria-controls="sync-help-overview" aria-selected="true">Overview</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="sync-help-seat-tab" data-toggle="tab" href="#sync-help-seat" role="tab" aria-controls="sync-help-seat" aria-selected="false">SeAT Peer</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="sync-help-aauth-tab" data-toggle="tab" href="#sync-help-aauth" role="tab" aria-controls="sync-help-aauth" aria-selected="false">AAuth Peer</a>
+                </li>
+            </ul>
 
-            <hr>
+            <div class="tab-content border border-top-0 rounded-bottom p-3" id="syncHelpTabsContent">
+                <div class="tab-pane fade show active" id="sync-help-overview" role="tabpanel" aria-labelledby="sync-help-overview-tab">
+                    <p class="mb-2">
+                        Timerboard Sync lets this SeAT instance share timers with other SeAT installs and with AllianceAuth timer APIs.
+                    </p>
+                    <p class="mb-2">
+                        This is useful when you work with friendly groups, coalition partners, or alts on separate SeAT installs and want everyone to see the same relevant structure timers for joint operations without manually re-entering them.
+                    </p>
+                    <p class="mb-2">
+                        Sync is peer-to-peer, not a mesh. This SeAT only sends timers to the remote instances you explicitly configure here, and remote timers do not get forwarded onward to other peers.
+                    </p>
+                    <p class="mb-2">
+                        Outbound sync is filtered per peer. You can include timers with certain tags, exclude timers with certain tags, or leave both lists empty to send everything.
+                    </p>
+                    <p class="mb-0 text-muted">
+                        Timers received from another source are marked locally as remote synced, use the receiving role you choose for that peer, and are not forwarded onward to other peers.
+                    </p>
+                </div>
 
-            <h5 class="mb-2">How To Create The API Token</h5>
-            <ol class="mb-0 pl-3">
-                <li>For a SeAT peer, create a SeAT API token on the remote instance and restrict it with an IP allowlist.</li>
-                <li>For an AAuth peer, create the API token expected by that AAuth REST API installation.</li>
-                <li>Paste that token here as the Peer API Token.</li>
-                <li>For SeAT peers, use the remote SeAT base URL plus its instance UUID.</li>
-                <li>For AAuth peers, use the full timer API collection endpoint URL if their API exposes timers on a dedicated endpoint.</li>
-            </ol>
+                <div class="tab-pane fade" id="sync-help-seat" role="tabpanel" aria-labelledby="sync-help-seat-tab">
+                    <p class="mb-2">
+                        Use a SeAT peer when the remote system is another SeAT instance running this timerboard sync API.
+                    </p>
+                    <ul class="mb-2 pl-3">
+                        <li>Peer URL: the remote SeAT base URL, such as <code>https://seat.example.com</code></li>
+                        <li>Peer Instance UUID: the remote SeAT instance UUID shown on its sync page</li>
+                        <li>Peer API Token: a SeAT API token created on the remote instance</li>
+                    </ul>
+                    <p class="mb-2">
+                        SeAT peers are push-based. Local timers are sent to that remote SeAT, and the remote SeAT can also send its timers here if it configures this instance as a peer on its side.
+                    </p>
+                    <p class="mb-0 text-muted">
+                        Restrict SeAT API tokens with an IP allowlist whenever possible.
+                    </p>
+                </div>
+
+                <div class="tab-pane fade" id="sync-help-aauth" role="tabpanel" aria-labelledby="sync-help-aauth-tab">
+                    <p class="mb-2">
+                        Use an AAuth peer when the remote system is an AllianceAuth instance with the
+                        <a href="https://apps.allianceauth.org/apps/detail/allianceauth-restapi" target="_blank" rel="noopener noreferrer"><code>allianceauth-restapi</code></a>
+                        plugin installed and its Structure Timers API enabled.
+                    </p>
+                    <ul class="mb-2 pl-3">
+                        <li>Peer URL: the full structure timers collection endpoint, typically <code>https://auth.example.com/rest/api/structuretimers</code></li>
+                        <li>Peer API Token: the API token expected by that AllianceAuth REST API installation</li>
+                        <li>Pull Remote Timers: enable this if you want SeAT to poll that AAuth endpoint and import AAuth timers here</li>
+                    </ul>
+                    <p class="mb-2">
+                        AAuth support is more limited than SeAT-to-SeAT sync. SeAT can push timers into AAuth and can optionally poll AAuth timers back in, but AAuth does not expose full remote update and delete support.
+                    </p>
+                    <p class="mb-0 text-muted">
+                        In practice, treat AAuth peers as create-and-list integrations rather than full two-way remote control.
+                    </p>
+                </div>
+            </div>
         </div>
     </div>
 
