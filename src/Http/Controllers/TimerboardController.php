@@ -196,16 +196,12 @@ class TimerboardController extends Controller
         $escapedQuery = $this->escapeLike($query);
 
         // groupIDs: 5 = Solar System, 7 = Planet, 8 = Moon
-        $results = MapDenormalize::where('itemName', 'like', '%' . $escapedQuery . '%')
+        $results = MapDenormalize::where('itemName', 'like', $escapedQuery . '%')
             ->whereIn('groupID', [5, 7, 8])
             ->select('itemID', 'itemName', 'typeID', 'solarSystemID', 'groupID')
             ->orderBy('itemName')
-            ->limit(100)
+            ->limit(20)
             ->get()
-            ->sort(function ($left, $right) use ($query) {
-                return $this->compareSearchLabels($left->itemName, $right->itemName, $query);
-            })
-            ->take(20)
             ->values();
 
         $formatted = $results->map(function ($item) {
