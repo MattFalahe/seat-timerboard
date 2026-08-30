@@ -268,20 +268,34 @@ class TimerboardController extends Controller
                 $ids = array_slice($ids, 0, 100);
 
                 return collect($this->resolveUniverseNames($esiClient, $ids))
+                    ->filter(function ($item) use ($query) {
+                        return $this->searchStartsWith($item['name'] ?? '', $query);
+                    })
                     ->map(function ($item) {
                         return [
                             'id' => $item['name'],
                             'text' => $item['name'] . ' (' . ucfirst($item['category']) . ')',
                             'name' => $item['name'],
+                            'category' => $item['category'],
                         ];
                     })
                     ->sort(function ($left, $right) use ($query) {
+                        $categoryComparison = $this->compareEntityCategories(
+                            $left['category'] ?? '',
+                            $right['category'] ?? ''
+                        );
+
+                        if ($categoryComparison !== 0) {
+                            return $categoryComparison;
+                        }
+
                         return $this->compareSearchLabels($left['name'], $right['name'], $query);
                     })
                     ->take(20)
                     ->values()
                     ->map(function ($item) {
                         unset($item['name']);
+                        unset($item['category']);
 
                         return $item;
                     })
@@ -474,6 +488,21 @@ class TimerboardController extends Controller
         }
 
         return 2;
+    }
+
+    private function searchStartsWith(string $value, string $query): bool
+    {
+        return str_starts_with(strtolower($value), strtolower($query));
+    }
+
+    private function compareEntityCategories(string $left, string $right): int
+    {
+        $weights = [
+            'alliance' => 0,
+            'corporation' => 1,
+        ];
+
+        return ($weights[strtolower($left)] ?? 99) <=> ($weights[strtolower($right)] ?? 99);
     }
 
     private function normalizeNotes($value): ?string
